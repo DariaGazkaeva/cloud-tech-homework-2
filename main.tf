@@ -84,7 +84,7 @@ resource "yandex_resourcemanager_folder_iam_member" "sa-editor" {
 
 resource "yandex_iam_service_account_static_access_key" "sa-static-key" {
   service_account_id = yandex_iam_service_account.sa-hw-2.id
-  description        = "static access key for object storage"
+  description        = "static access key"
 }
 
 resource "yandex_storage_bucket" "vvot01-photo" {
@@ -135,4 +135,16 @@ resource "yandex_function_trigger" "vvot01-photo" {
     delete       = false
     batch_cutoff = 1
   }
+}
+
+resource "yandex_resourcemanager_folder_iam_member" "sa-editor-queue" {
+  folder_id = var.folder_id
+  role      = "ymq.admin"
+  member    = "serviceAccount:${yandex_iam_service_account.sa-hw-2.id}"
+}
+
+resource "yandex_message_queue" "vvot01-task" {
+  name       = "vvot01-task"
+  access_key = yandex_iam_service_account_static_access_key.sa-static-key.access_key
+  secret_key = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
 }
