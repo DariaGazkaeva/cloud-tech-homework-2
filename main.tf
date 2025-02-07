@@ -111,3 +111,11 @@ resource "yandex_function" "vvot01-face-detection" {
     zip_filename = archive_file.code_zip.output_path
   }
 }
+
+resource "yandex_function_iam_binding" "binding-face-detection" {
+  function_id = yandex_function.vvot01-face-detection.id
+  role        = "serverless.functions.invoker"
+  members = [
+    "serviceAccount:${yandex_iam_service_account.sa-hw-2.id}",
+  ]
+}
