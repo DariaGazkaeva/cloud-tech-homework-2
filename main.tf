@@ -98,3 +98,16 @@ resource "yandex_storage_bucket" "vvot01-faces" {
   secret_key = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
   bucket     = "vvot01-faces"
 }
+
+resource "yandex_function" "vvot01-face-detection" {
+  name               = "vvot01-face-detection"
+  description        = "function for face detection"
+  user_hash          = archive_file.code_zip.output_sha256
+  runtime            = "python37"
+  entrypoint         = "detection.handler"
+  memory             = "1024"
+  service_account_id = yandex_iam_service_account.sa-hw-2.id
+  content {
+    zip_filename = archive_file.code_zip.output_path
+  }
+}
