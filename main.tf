@@ -75,3 +75,26 @@ output "faces-func-url" {
 resource "telegram_bot_webhook" "webhook" {
   url = "https://api.telegram.org/bot${var.tg_bot_key}/setWebhook?url=https://functions.yandexcloud.net/${yandex_function.faces-func.id}"
 }
+
+resource "yandex_resourcemanager_folder_iam_member" "sa-editor" {
+  folder_id = var.folder_id
+  role      = "storage.editor"
+  member    = "serviceAccount:${yandex_iam_service_account.sa-hw-2.id}"
+}
+
+resource "yandex_iam_service_account_static_access_key" "sa-static-key" {
+  service_account_id = yandex_iam_service_account.sa-hw-2.id
+  description        = "static access key for object storage"
+}
+
+resource "yandex_storage_bucket" "vvot01-photo" {
+  access_key = yandex_iam_service_account_static_access_key.sa-static-key.access_key
+  secret_key = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
+  bucket     = "vvot01-photo"
+}
+
+resource "yandex_storage_bucket" "vvot01-faces" {
+  access_key = yandex_iam_service_account_static_access_key.sa-static-key.access_key
+  secret_key = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
+  bucket     = "vvot01-faces"
+}
