@@ -119,3 +119,20 @@ resource "yandex_function_iam_binding" "binding-face-detection" {
     "serviceAccount:${yandex_iam_service_account.sa-hw-2.id}",
   ]
 }
+
+resource "yandex_function_trigger" "vvot01-photo" {
+  name        = "vvot01-photo"
+  description = "trigger for face detection"
+  function {
+    id                 = yandex_function.vvot01-face-detection.id
+    service_account_id = yandex_iam_service_account.sa-hw-2.id
+  }
+  object_storage {
+    bucket_id    = yandex_storage_bucket.vvot01-photo.id
+    suffix       = ".jpg"
+    create       = true
+    update       = false
+    delete       = false
+    batch_cutoff = 1
+  }
+}
