@@ -28,3 +28,33 @@ resource "yandex_iam_service_account" "sa-hw-2" {
   name        = "sa-hw-2"
   description = "service account for faces homework"
 }
+
+resource "archive_file" "code_zip" {
+  type        = "zip"
+  output_path = "func.zip"
+  source_dir  = "src"
+}
+
+resource "yandex_function" "faces-func" {
+  name        = "faces-func"
+  description = "function for faces homework"
+  user_hash   = archive_file.code_zip.output_sha256
+  runtime     = "python37"
+  entrypoint  = "main.handler"
+  memory      = "128"
+  content {
+    zip_filename = archive_file.code_zip.output_path
+  }
+}
+
+resource "yandex_function_iam_binding" "public-faces-func" {
+  function_id = yandex_function.faces-func.id
+  role        = "serverless.functions.invoker"
+  members = [
+    "system:allUsers",
+  ]
+}
+
+output "faces-func-url" {
+  value = "https://functions.yandexcloud.net/${yandex_function.faces-func.id}"
+}
