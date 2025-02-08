@@ -185,12 +185,6 @@ resource "yandex_function" "vvot01-face-cut" {
   memory             = "512"
   execution_timeout  = "5"
   service_account_id = yandex_iam_service_account.sa-hw-2.id
-  #   environment = {
-  #     QUEUE_URL  = yandex_message_queue.vvot01-task.id,
-  #     REGION_ID  = yandex_message_queue.vvot01-task.region_id,
-  #     ACCESS_KEY = yandex_iam_service_account_static_access_key.sa-static-key.access_key,
-  #     SECRET_KEY = yandex_iam_service_account_static_access_key.sa-static-key.secret_key
-  #   }
   content {
     zip_filename = archive_file.cut_zip.output_path
   }
@@ -231,4 +225,72 @@ resource "yandex_function_trigger" "vvot01-task" {
     batch_cutoff       = "1"
     batch_size         = "1"
   }
+}
+
+resource "archive_file" "gateway_zip" {
+  type        = "zip"
+  output_path = "gateway.zip"
+  source_dir  = "gateway"
+}
+
+resource "yandex_function" "vvot01-gateway" {
+  name               = "vvot01-gateway"
+  description        = "function for face gateway"
+  user_hash          = archive_file.gateway_zip.output_sha256
+  runtime            = "python312"
+  entrypoint         = "gateway.handler"
+  memory             = "512"
+  execution_timeout  = "5"
+  service_account_id = yandex_iam_service_account.sa-hw-2.id
+  content {
+    zip_filename = archive_file.gateway_zip.output_path
+  }
+  mounts {
+    name = "faces"
+    mode = "rw"
+    object_storage {
+      bucket = yandex_storage_bucket.vvot01-faces.bucket
+    }
+  }
+}
+
+resource "yandex_function_iam_binding" "binding-gateway" {
+  function_id = yandex_function.vvot01-gateway.id
+  role        = "serverless.functions.invoker"
+  members = [
+    "serviceAccount:${yandex_iam_service_account.sa-hw-2.id}",
+  ]
+}
+
+
+resource "yandex_api_gateway" "vvot01-apigw" {
+  name              = "vvot01-apigw"
+  execution_timeout = "300"
+  spec              = <<-EOT
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: API for photo
+paths:
+  /:
+    get:
+      parameters:
+        - name: face
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Face image
+          content:
+            'image/jpeg':
+              schema:
+                type: "string"
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: ${yandex_function.vvot01-gateway.id}
+        tag: "$latest"
+        service_account_id: ${yandex_iam_service_account.sa-hw-2.id}
+EOT
 }
