@@ -47,33 +47,47 @@ resource "archive_file" "bot_zip" {
   source_dir  = "bot"
 }
 
-resource "yandex_function" "faces-func" {
-  name        = "faces-func"
-  description = "function for faces homework"
-  user_hash   = archive_file.bot_zip.output_sha256
-  runtime     = "python312"
-  entrypoint  = "main.handler"
-  memory      = "128"
-  environment = { "TELEGRAM_BOT_TOKEN" = var.tg_bot_key }
+resource "yandex_function" "vvot01-boot" {
+  name               = "vvot01-boot"
+  description        = "function for bot in faces homework"
+  user_hash          = archive_file.bot_zip.output_sha256
+  runtime            = "python312"
+  entrypoint         = "main.handler"
+  memory             = "128"
+  service_account_id = yandex_iam_service_account.sa-hw-2.id
+  environment = {
+    "TELEGRAM_BOT_TOKEN" = var.tg_bot_key
+    "API_GATEWAY_HOST"   = yandex_api_gateway.vvot01-apigw.domain
+  }
   content {
     zip_filename = archive_file.bot_zip.output_path
   }
+  mounts {
+    name = "photos"
+    mode = "rw"
+    object_storage {
+      bucket = yandex_storage_bucket.vvot01-photo.bucket
+    }
+  }
+  mounts {
+    name = "faces"
+    mode = "rw"
+    object_storage {
+      bucket = yandex_storage_bucket.vvot01-faces.bucket
+    }
+  }
 }
 
-resource "yandex_function_iam_binding" "public-faces-func" {
-  function_id = yandex_function.faces-func.id
+resource "yandex_function_iam_binding" "public-vvot01-boot" {
+  function_id = yandex_function.vvot01-boot.id
   role        = "serverless.functions.invoker"
   members = [
     "system:allUsers",
   ]
 }
 
-output "faces-func-url" {
-  value = "https://functions.yandexcloud.net/${yandex_function.faces-func.id}"
-}
-
 resource "telegram_bot_webhook" "webhook" {
-  url = "https://api.telegram.org/bot${var.tg_bot_key}/setWebhook?url=https://functions.yandexcloud.net/${yandex_function.faces-func.id}"
+  url = "https://api.telegram.org/bot${var.tg_bot_key}/setWebhook?url=https://functions.yandexcloud.net/${yandex_function.vvot01-boot.id}"
 }
 
 resource "yandex_resourcemanager_folder_iam_member" "sa-editor" {
@@ -292,5 +306,25 @@ paths:
         function_id: ${yandex_function.vvot01-gateway.id}
         tag: "$latest"
         service_account_id: ${yandex_iam_service_account.sa-hw-2.id}
+  /photo:
+    get:
+      parameters:
+        - name: photo
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Photo
+          content:
+            'image/jpeg':
+              schema:
+                type: "string"
+      x-yc-apigateway-integration:
+        type: object_storage
+        bucket: ${yandex_storage_bucket.vvot01-photo.bucket}
+        service_account_id: ${yandex_iam_service_account.sa-hw-2.id}
+        object: '{photo}'
 EOT
 }

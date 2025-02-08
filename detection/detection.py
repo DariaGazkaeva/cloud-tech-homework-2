@@ -24,6 +24,11 @@ def handler(event, context):
 
     for message in messages:
         object_id = message['details']['object_id']
+
+        if not is_valid_object_id(object_id):
+            print(f'Object {object_id} has invalid name, no face detection')
+            continue
+
         image = cv2.imread(f'{PATH}/{object_id}')
 
         # Преобразуем изображение в оттенки серого (это необходимо для работы каскада Хаара)
@@ -39,6 +44,11 @@ def handler(event, context):
     send_messages_to_queue(message_queue)
 
     return {'statusCode': 200, 'body': 'test-text'}
+
+
+def is_valid_object_id(object_id):
+    return object_id.count('.') == 1
+
 
 def send_messages_to_queue(messages):
     print("Sending messages to queue")

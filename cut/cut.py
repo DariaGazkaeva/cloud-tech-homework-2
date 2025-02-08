@@ -1,9 +1,11 @@
 import cv2
 import json
-from datetime import datetime
+import time
 
 PATH_PHOTOS = '/function/storage/photos'
 PATH_FACES = '/function/storage/faces'
+
+UNKNOWN_NAME = 'unknown'
 
 
 def handler(event, context):
@@ -15,7 +17,7 @@ def handler(event, context):
         object_id = message['object_id']
         image_path = f'{PATH_PHOTOS}/{object_id}'
 
-        new_object_id = object_id[:-4] + str(datetime.now().timestamp()) + '.jpg'
+        new_object_id = UNKNOWN_NAME + '.' + object_id[:-4] + '.' + str(int(time.time() * 1000000)) + '.' + '.jpg'
 
         output_path = f'{PATH_FACES}/{new_object_id}'
 
